@@ -50,12 +50,16 @@ public class HexDialog extends EnhancedDialog
 
 	public static final String CLIP = "clip";
 
+	public static final String HEX = "hex";
+	
 	public static final String SAVE = "save";
 
 	private int selections, bytes;
 
 	public String encoding;
 
+	private String[] encodings;
+	
 	public boolean isOKClosed = false;
 
 	public String radioChoice;
@@ -63,12 +67,13 @@ public class HexDialog extends EnhancedDialog
 	public boolean nonPrintingAsDot;
 
 
-	public HexDialog(JFrame frame, int selections, int bytes, String encoding)
+	public HexDialog(JFrame frame, int selections, int bytes, String encoding, String[] encodings)
 	{
 		super(frame, "HexTools", true);
 		this.selections = selections;
 		this.bytes = bytes;
 		this.encoding = encoding;
+		this.encodings = encodings;
 		init();
 	}
 
@@ -90,24 +95,38 @@ public class HexDialog extends EnhancedDialog
 		content.add(title2);
 
 
-		JRadioButton[] radioButtons = new JRadioButton[2];
+		JRadioButton[] radioButtons = new JRadioButton[3];
 
 		radioButtons[0] = new JRadioButton("Save as ..");
 		radioButtons[0].setActionCommand(SAVE);
 
-		radioButtons[1] = new JRadioButton("Copy to Clipboard as String");
-		radioButtons[1].setActionCommand(CLIP);
+		radioButtons[1] = new JRadioButton("Copy to Clipboard as Hexdump");
+		radioButtons[1].setActionCommand(HEX);
 
+		radioButtons[2] = new JRadioButton("Copy to Clipboard as String");
+		radioButtons[2].setActionCommand(CLIP);
+		
 		final ButtonGroup group = new ButtonGroup();
 		group.add(radioButtons[0]);
 		group.add(radioButtons[1]);
+		group.add(radioButtons[2]);
 
 		content.add(radioButtons[0]);
 		content.add(radioButtons[1]);
+		content.add(radioButtons[2]);
 
 		String radioChoiceSaved = jEdit.getProperty(HEX_TOOLS_PLUGIN_CHOICE);
+
+		int n = 0;
 		
-		int n = SAVE.equals(radioChoiceSaved) ? 0 : 1;
+		if (HEX.equals(radioChoiceSaved))
+		{
+			n = 1;
+		}
+		if (CLIP.equals(radioChoiceSaved))
+		{
+			n = 2;
+		}
 		
 		radioButtons[n].setSelected(true);
 
@@ -119,9 +138,6 @@ public class HexDialog extends EnhancedDialog
 		encodingPanel.setBorder(new EmptyBorder(12, 0, 0, 0));
 
 
-		String[] encodings = MiscUtilities.getEncodings(true);
-		Arrays.sort(encodings,
-				new StandardUtilities.StringCompare<String>(true));
 		final JComboBox jComboBoxEncoding = new JComboBox(encodings);
 		jComboBoxEncoding.setEditable(true);
 		jComboBoxEncoding.setSelectedItem(encoding);
@@ -189,18 +205,5 @@ public class HexDialog extends EnhancedDialog
 	{
 		dispose();
 	}
-
-	public static void showDialog()
-	{
-		JFrame frame = new JFrame("HexDialog");
-
-		new HexDialog(frame, 5, 7, "");
-	}
-
-	public static void main(String[] args)
-	{
-		showDialog();
-	}
-
 
 }

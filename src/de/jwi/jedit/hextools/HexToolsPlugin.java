@@ -19,12 +19,15 @@
 
 package de.jwi.jedit.hextools;
 
+import java.awt.datatransfer.StringSelection;
 import java.io.ByteArrayOutputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.util.Arrays;
 
 import org.gjt.sp.jedit.EditPlugin;
+import org.gjt.sp.jedit.MiscUtilities;
 import org.gjt.sp.jedit.Registers;
 import org.gjt.sp.jedit.View;
 import org.gjt.sp.jedit.jEdit;
@@ -33,6 +36,7 @@ import org.gjt.sp.jedit.browser.VFSFileChooserDialog;
 import org.gjt.sp.jedit.buffer.JEditBuffer;
 import org.gjt.sp.jedit.textarea.JEditTextArea;
 import org.gjt.sp.jedit.textarea.Selection;
+import org.gjt.sp.util.StandardUtilities;
 
 /**
  * @author Juergen Weber (WJ3369) created 05.12.2010
@@ -41,6 +45,10 @@ import org.gjt.sp.jedit.textarea.Selection;
 public class HexToolsPlugin extends EditPlugin
 {
 	private static final String HEX_TOOLS_PLUGIN_SAVE_AS_FOLDER = "HexToolsPlugin.SaveAsFolder";
+
+	private static String encoding = null;
+
+	private static String[] encodings;
 
 	public static void parseHex(View view, JEditTextArea textArea)
 	{
@@ -53,31 +61,37 @@ public class HexToolsPlugin extends EditPlugin
 		}
 
 		byte[] b = null;
-		
+
 		try
 		{
 			b = parseHexBytes(textArea, selections);
-		}
-		catch (NumberFormatException e1)
+		} catch (NumberFormatException e1)
 		{
 			textArea.getToolkit().beep();
 			return;
 		}
-		
+
 		if (b.length == 0)
 		{
 			textArea.getToolkit().beep();
 			return;
 		}
 
-		String encoding = textArea.getBuffer().getStringProperty(JEditBuffer.ENCODING);
+		if (encoding == null)
+		{
+			encodings = MiscUtilities.getEncodings(true);
+			Arrays.sort(encodings, new StandardUtilities.StringCompare<String>(true));
+
+			encoding = textArea.getBuffer().getStringProperty(JEditBuffer.ENCODING);
+		}
 		
-		HexDialog hexDialog = new HexDialog(view, selections.length, b.length, encoding);
+		HexDialog hexDialog = new HexDialog(view, selections.length, b.length, encoding, encodings);
 
 		if (hexDialog.isOKClosed)
 		{
-			String s = hexDialog.radioChoice;
+			encoding = hexDialog.encoding;
 			
+			String s = hexDialog.radioChoice;
 
 			if (HexDialog.CLIP.equals(s))
 			{
@@ -89,13 +103,17 @@ public class HexToolsPlugin extends EditPlugin
 					{
 						hs = hs.replaceAll("[^\\p{Print}]", ".");
 					}
-				}
-				catch (UnsupportedEncodingException e)
+				} catch (UnsupportedEncodingException e)
 				{
 					throw new RuntimeException(e);
 				}
-				Registers.getRegister('$').setValue(hs);
+				Registers.getRegister('$').setTransferable(new StringSelection(hs));
+			} else if (HexDialog.HEX.equals(s))
+			{
+				String hs = HexDumpUtil.formatHexDump(b, 0, b.length, hexDialog.encoding);
+				Registers.getRegister('$').setTransferable(new StringSelection(hs));
 			}
+
 			else if (HexDialog.SAVE.equals(s))
 			{
 				save(view, b);
@@ -103,8 +121,7 @@ public class HexToolsPlugin extends EditPlugin
 		}
 	}
 
-	private static byte[] parseHexBytes(JEditTextArea textArea,
-			Selection[] selections) throws NumberFormatException
+	private static byte[] parseHexBytes(JEditTextArea textArea, Selection[] selections) throws NumberFormatException
 	{
 		String s = textArea.getSelectedText(" ");
 
@@ -128,9 +145,9 @@ public class HexToolsPlugin extends EditPlugin
 	{
 		String dir = jEdit.getProperty(HEX_TOOLS_PLUGIN_SAVE_AS_FOLDER);
 		dir = dir == null ? "" : dir;
-		
-		VFSFileChooserDialog vfsFileChooserDialog = new VFSFileChooserDialog(
-				view, dir, VFSBrowser.SAVE_DIALOG, false, true);
+
+		VFSFileChooserDialog vfsFileChooserDialog = new VFSFileChooserDialog(view, dir, VFSBrowser.SAVE_DIALOG, false,
+				true);
 
 		String[] selectedFiles = vfsFileChooserDialog.getSelectedFiles();
 
@@ -143,12 +160,11 @@ public class HexToolsPlugin extends EditPlugin
 				fos = new FileOutputStream(dir);
 				fos.write(b);
 				fos.close();
-			}
-			catch (IOException e)
+			} catch (IOException e)
 			{
 				throw new RuntimeException(e);
 			}
-			jEdit.setProperty(HEX_TOOLS_PLUGIN_SAVE_AS_FOLDER,dir);
+			jEdit.setProperty(HEX_TOOLS_PLUGIN_SAVE_AS_FOLDER, dir);
 		}
 	}
 
